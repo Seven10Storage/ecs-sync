@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
@@ -623,5 +624,122 @@ public class MetadataFilterTest {
             SyncMetadata syncMeta = object.getMetadata();
             assertNotNull(syncMeta.getUserMetadata().get(META1_KEY));
         }
-    }    
+    }
+
+    /**
+     * @throws Exception
+     */
+    @Test
+    public void testFilterExcludeNotIndexedKeyPresentValueEmpty() throws Exception {
+        ViPRSync sync = new ViPRSync();
+        Map<String, String> metaFilterMap = new HashMap<String, String>();
+        MetadataFilter metaFilter = new MetadataFilter();
+        TestObjectSource source = new TestObjectSource(numObjects, sizeObjects, null);
+        TestObjectTarget target = new TestObjectTarget();
+        for (TestSyncObject object : source.getObjects()) {
+            addMetaToObjectAndChildren(object, META1_KEY, META1_VAL);
+            addMetaToObjectAndChildren(object, META2_KEY, META2_VAL);
+        }
+
+        metaFilterMap.put(META1_KEY, META_EMPTY_VAL);
+        metaFilter.setMetadataExclude(metaFilterMap);
+        sync.setSource(source);
+        sync.setFilters(Arrays.asList((SyncFilter) metaFilter));
+        sync.setTarget(target);
+        sync.setSyncThreadCount(1);
+        sync.setLogLevel("verbose");
+        sync.run();
+        
+        assertEquals(0, target.getTotalObjects());        
+    }
+    
+    /**
+     * @throws Exception
+     */
+    @Test
+    public void testFilterExcludeNotIndexedKeyPresentValueEqual() throws Exception {
+        ViPRSync sync = new ViPRSync();
+        Map<String, String> metaFilterMap = new HashMap<String, String>();
+        MetadataFilter metaFilter = new MetadataFilter();
+        TestObjectSource source = new TestObjectSource(numObjects, sizeObjects, null);
+        TestObjectTarget target = new TestObjectTarget();
+        for (TestSyncObject object : source.getObjects()) {
+            addMetaToObjectAndChildren(object, META1_KEY, META1_VAL);
+            addMetaToObjectAndChildren(object, META2_KEY, META2_VAL);
+        }
+
+        metaFilterMap.put(META1_KEY, META1_VAL);
+        metaFilter.setMetadataExclude(metaFilterMap);
+        sync.setSource(source);
+        sync.setFilters(Arrays.asList((SyncFilter) metaFilter));
+        sync.setTarget(target);
+        sync.run();
+
+        assertEquals(0, sync.getCompletedCount());
+    }
+
+    /**
+     * @throws Exception
+     */
+    @Test
+    public void testFilterExcludeNotIndexedKeyNotPresentValueNotEqual() throws Exception {
+        ViPRSync sync = new ViPRSync();
+        Map<String, String> metaFilterMap = new HashMap<String, String>();
+        MetadataFilter metaFilter = new MetadataFilter();
+        TestObjectSource source = new TestObjectSource(numObjects, sizeObjects, null);
+        TestObjectTarget target = new TestObjectTarget();
+        for (TestSyncObject object : source.getObjects()) {
+            addMetaToObjectAndChildren(object, META1_KEY, META1_VAL);
+        }
+
+        // Get total objects before syncing
+        int totalObjects = getTotalChildren(source);
+        metaFilterMap.put(META_NOTPRESENT_KEY, META_NOTPRESENT_VAL);
+        metaFilter.setMetadataExclude(metaFilterMap);
+        sync.setSource(source);
+        sync.setFilters(Arrays.asList((SyncFilter) metaFilter));
+        sync.setTarget(target);
+        sync.run();
+
+        assertEquals(totalObjects, sync.getCompletedCount());
+    }
+
+    private void addMetaToObjectAndChildren(TestSyncObject object, String key, String value) {
+        SyncMetadata syncMeta = object.getMetadata();
+        syncMeta.setUserMetadataValue(key, value);
+        if (hasChildren(object.getChildren())) { 
+            for (TestSyncObject childObject : object.getChildren()) {
+                addMetaToObjectAndChildren(childObject, key, value);
+            }
+        }
+    }
+
+    private int getTotalChildren(TestObjectSource source) {
+        int val = 0;
+        if (hasChildren(source.getObjects())) {            
+            for (TestSyncObject childObject : source.getObjects()) {
+                 val += getTotalChildrenRecursively(childObject) + 1;
+            }
+        }
+        return val;
+    }
+
+    private int getTotalChildrenRecursively(TestSyncObject object) {
+        int val = 0;
+        if (hasChildren(object.getChildren())) {            
+            for (TestSyncObject childObject : object.getChildren()) {
+                 val += getTotalChildrenRecursively(childObject) + 1;
+            }
+        }
+        return val;
+    }
+
+    /**
+     * Return if a list has children
+     * @param children
+     * @return
+     */
+    private boolean hasChildren(List<TestSyncObject> children) {
+        return (children != null) && (children.size() > 0); 
+    }
 }

@@ -118,7 +118,34 @@ public class TestObjectTarget extends SyncTarget {
     public List<TestSyncObject> getRootObjects() {
         return getChildren("");
     }
-
+    
+    public int getTotalObjects() {
+        int val = 0;
+        List<TestSyncObject> rootChildren = getChildren("");        
+        if (rootChildren != null) {
+            for (TestSyncObject object : rootChildren) {
+                val += 1;
+                if (object.isDirectory())
+                    val += getTotalChildrenRecursive(getChildren(object.getRelativePath()));
+            }
+        }
+            
+        return val;
+    }
+    
+    private int getTotalChildrenRecursive(List<TestSyncObject> rootChildren) {
+        int val = 0;   
+        if (rootChildren != null) {
+            for (TestSyncObject object : rootChildren) {
+                val += 1;
+                if (object.isDirectory())
+                    val += getTotalChildrenRecursive(getChildren(object.getRelativePath()));
+            }
+        }
+        
+        return val;
+    }
+    
     private void mkdirs(File path) {
         File parent = path.getParentFile();
         if (parent == null) return;
